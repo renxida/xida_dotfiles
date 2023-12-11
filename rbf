@@ -1,0 +1,3 @@
+#!/usr/bin/bash
+git diff main --name-only -- '*.py' ':!third_party' | xargs black
+
