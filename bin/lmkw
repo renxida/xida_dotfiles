@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Check if at least one argument is provided
+if [ $# -eq 0 ]; then
+    echo "No arguments provided. Exiting."
+    exit 1
+fi
+
+# Combine all arguments into a single command
+COMMAND="$*"
+
+# Store the start time
+START_TIME=$(date +%s)
+
+# Create a temporary file for capturing the command's output
+TEMP_FILE=$(mktemp)
+
+# Run the command and capture the output, while also displaying it
+eval "$COMMAND" 2>&1 | tee "$TEMP_FILE"
+RETURN_STATUS=$?
+
+# Capture the last 10 lines of output
+COMMAND_OUTPUT=$(tail -10 "$TEMP_FILE")
+
+# Calculate the duration
+END_TIME=$(date +%s)
+DURATION=$((END_TIME - START_TIME))
+
+# Prepare the message
+COMMAND_NAME=$(echo $COMMAND | awk '{print $1}')
+PUSHBULLET_AUTH_TOKEN="o.fExNIebLxfFrucHeUHbZQXGm7QkXs90w"
+MESSAGE_TITLE=$(echo "${COMMAND_NAME} is done" | python -c 'import json,sys; print(json.dumps(sys.stdin.read()).strip("\""))')
+MESSAGE_BODY=$(echo -e "Command run: $COMMAND\nDuration: ${DURATION} seconds\nOutput:\n$COMMAND_OUTPUT\nReturn Status: $RETURN_STATUS" | python -c 'import json,sys; print(json.dumps(sys.stdin.read()).strip("\""))')
+
+# Send the notification
+curl --header 'Access-Token: '"$PUSHBULLET_AUTH_TOKEN"'' \
+     --header 'Content-Type: application/json' \
+     --data-binary '{"body":"'"$MESSAGE_BODY"'","title":"'"$MESSAGE_TITLE"'","type":"note"}' \
+     --request POST \
+     https://api.pushbullet.com/v2/pushes
+
+# Remove the temporary file
+rm "$TEMP_FILE"
